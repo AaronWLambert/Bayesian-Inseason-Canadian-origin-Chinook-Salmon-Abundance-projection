@@ -571,4 +571,5 @@ ggplot(df.comb, aes(x = value/1000, y =fct_rev( par)))+
   scale_color_discrete(name = "")+
   guides(fill = guide_legend(override.aes = list(size = 5)))+
   coord_cartesian(xlim = c(0,max(df.comb$value/1000)))
+
 ```
