@@ -4,8 +4,8 @@ A management tool created to generate an inseason projection for each day during
 ## Folders
 |File|Description|
 |:---:|---|
-|Data|Data files that are used in the projection model. These data are generally preprocessed in an R script and fed into the Stan model.|
-|R|Scripts used to preprocess data and to call the Stan model using Rstan. The most general script is called Yukon Inseason Forecast, which can easily be used to generate predictions for a single day in any year of interest.|
+|Data|Data files that are used in the projection model. These data are generally preprocessed in an R script and fed into the Stan model. The two subfolders labeled as ADFG Eagle/PSS Daily Reports is used to download passage observations inseason to run the r-markdown scripts.|
+|R|Scripts used to preprocess data and to call the Stan model using Rstan. |
 |Stan| Stan scripts that are called in the Rstan model. These include different versions of the model utilizing methods that are currently being assessed for their predictive performance.|
 |Mathematical Model Descriptions| Descrptions of the model versions with the accompanying math and equations.|
 

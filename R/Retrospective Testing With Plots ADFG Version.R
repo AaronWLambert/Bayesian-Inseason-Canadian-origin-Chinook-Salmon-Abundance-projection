@@ -152,8 +152,8 @@ for(y in c(testYears)){
 # Save or read in outputlist #######################################
 
 # Save the resulting model output here. this will save to the output folder.
-# saveRDS(object = outputList, file = file.path(dir.output,
-#                                               "VerPSSreg 27Mar24.RDS"))
+saveRDS(object = outputList, file = file.path(dir.output,
+                                              "VerPSSreg 27Mar24.RDS"))
 
 # Read in outputs from retro testing 
 
@@ -207,7 +207,7 @@ rmseDF_pf <- data.frame("Day" = testDays,
 
 # Combine data frames into one data.frame for plotting
 full_rmseDF <- rbind(
-  rmseDF_verPSSreg
+  rmseDF_verPSSreg,
   rmseDF_pf_new # Uncomment if you want this in the excel-like table below
 )
 
@@ -443,67 +443,5 @@ ggplot(peDF_total,
 # dev.off()
 
 
-# Plot of ~ model weights of PF and PSS over a year #################################
-sigma_func <- function(mod, testYears, testDays){
-  
-  # Vector for storing sigmas
-  sigma_vect <- vector(length=length(mod))
-  
-  # Loop for geting vector sigmas 
-  for (p in 1:length(sigma_vect)) {
-    sigma_vect[p]<- median(mod[[p]]$pars$sigma)
-  } # End loop
-  
-  # Matrix of PSS prediction
-  sigma_mat <- matrix(sigma_vect,
-                      nrow = length(testDays),
-                      ncol = length(testYears),
-                      byrow = FALSE)
-  # Label with years
-  colnames(sigma_mat)<- c(testYears)
-  
-  # Turn matrix into DF
-  sigma_DF <- as.data.frame((sigma_mat))
-  
-  # Put days into DF
-  sigma_DF$day <- testDays
-  
-  # Pivot df longer
-  sigma_DF <- as.data.frame(pivot_longer(sigma_DF,cols = -day))
-  
-  # Name columns
-  names(sigma_DF)<- c("Day", "Year", "PSSpred")
-  
-  # Change year to double
-  sigma_DF$Year<- as.double(sigma_DF$Year)
-  
-  # Return df
-  return(sigma_DF)
-  
-} # End Function
 
-
-sig_mat<-sigma_func(mod = mod,
-                    testYears = testYears,
-                    testDays = testDays)
-
-sig_2019<- sig_mat[sig_mat$Year == 2019,]
-
-pf_sigma
-
-weight_pf <- 1/pf_sigma^2
-
-weight_PSS <- 1/sig_2019$PSSpred^2
-
-sig_DF <- data.frame("PSS" = weight_PSS, "PF" = weight_pf)
-
-sig_DF$PSS_stand <- sig_DF$PSS/(sig_DF$PSS+sig_DF$PF)
-sig_DF$PF_stand <- sig_DF$PF/(sig_DF$PSS+sig_DF$PF)
-sig_DF$Day <- testDays
-sig_DF <- sig_DF[,c(3,4,5)]
-
-sig_long <- pivot_longer(sig_DF, cols = -Day)
-
-ggplot(sig_long, aes(x = Day, y = value, fill = name))+
-  geom_area()
 

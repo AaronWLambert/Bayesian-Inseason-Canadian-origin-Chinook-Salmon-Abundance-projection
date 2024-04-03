@@ -744,7 +744,7 @@ traceplot(object = fit, c(
 
  
 # Launch shiny app (Eady way to look at diagnostic plots) ######################
-# shinystan::launch_shinystan(as.shinystan(fit)) # Uncomment to use
+shinystan::launch_shinystan(as.shinystan(fit)) # Uncomment to use
 
 # Extract parameter estimates for plotting & analysis ##########################
 pars <- rstan::extract(fit)

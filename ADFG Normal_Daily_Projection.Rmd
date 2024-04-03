@@ -59,6 +59,7 @@ source(file = file.path(dir.R,"model_run_function LOO_ADFG.R"))
 PSS <- read_xlsx(file.path(dir.data,"ADFG PSS Daily Reports/Yukon Escapement Daily 9Aug23.xlsx"),skip = 3)
 
 ESS <- read_xlsx(file.path(dir.data,"ADFG Eagle Daily Reports/Yukon Escapement Daily Eagle 9Aug23.xlsx"),skip = 3)
+
 # Control Section ##################################################################
 
 # Day of the projection (used as in-text date)
