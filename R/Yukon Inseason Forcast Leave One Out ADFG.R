@@ -1,9 +1,11 @@
 #**********************************************************************************
-# Project Name: Yukon River INSEASON FORECAST - Integrated Bayesian Inseason Model
+# Project Name: Yukon River Chinook salmon INSEASON FORECAST: 
+#               Integrated Bayesian Inseason Model
+#
 # Creator: Aaron Lambert, College of Fisheries and Ocean Sciences, UAF
 # Date: 3.26.24
 
-# Version: ADF&G 
+# Version: ADF&G -  Run day at a time
 # Purpose: To generate inseason Yukon River Canadian origin Chinook 
 #           salmon abundance projections
 #
@@ -13,7 +15,9 @@
 #   4) Assorted plots
 #
 #NOTES:
-#   This script is the rewritten code for leave-one-out retro testing
+#   1) This script is the rewritten code for leave-one-out retro testing
+#   2) Good for working out issues. Changes can be made to function for retro-testing.
+#       (model_run_function)
 
 
 # Next steps: 
@@ -40,7 +44,7 @@ mc.cores = parallel::detectCores()
 # Define Workflow Paths ============================================
 
 # set to working directory (Set to directory with all the necessary folders)
-wd <- "C:/Users/aaron/OneDrive/Desktop/Yukon Kings/Inseason Forcast Model"
+wd <- "C:/Users/aaron/OneDrive/Desktop/ADFG Yukon Model/Yukon Chinook Bayesian Inseason Projection Model ADFG"
 
 setwd(wd)
 
@@ -48,55 +52,55 @@ setwd(wd)
 # To use this, one must have folders with these names in the working directory
 dir.output <- file.path(wd,"output")
 dir.figs <- file.path(wd,"figs")
-dir.stan <- file.path(wd,"Stan")
-dir.data <- file.path(wd,"Data")
+dir.stan <- file.path(wd,"stan")
+dir.data <- file.path(wd,"data")
 dir.R <- file.path(wd,"R")
 
 
 ######### Import Data ###############
 # Total Canadian-origin reconstructed run size for each year
-CAN_hist <- readRDS(file.path(dir.data,"Canadian Passage RR 21Mar23.RDS"))
+CAN_hist <- readRDS(file.path(dir.data,"Canadian Chinook Passage RR 2Apr24.RDS"))
 
 # PSS historical for Jun 1st = 152, to Aug 31 = 243
 # Data obtained from ADFG website
 # https://www.adfg.alaska.gov/index.cfm?adfg=commercialbyareayukon.salmon_escapement
 # NOTE!!!! See use "Dataframe preprocess.R" to get  most recent version.
 #  If not using Dataframe preprocess.R, uncomment out the following to load relevant PSS historical data
-PSS_hist <- readRDS(file = file.path(dir.data,"PSS passage Final 2022.RDS"))
+PSS_hist <- readRDS(file = file.path(dir.data,"PSS passage Final 2023.RDS"))
 
 # Eagle passage
-Eagle_hist <- readRDS(file = file.path(dir.data, "Eagle passage 23Nov22.RDS"))
+Eagle_hist <- readRDS(file = file.path(dir.data, "Eagle passage Final 2023.RDS"))
 
 # Read in historic preseason forecasts (2007 - 2022)
-pf_hist <- readRDS(file.path(dir.data,"pf_ver3.1_14Aprl23_eagle+harvest.RDS"))
+pf_hist <- readRDS(file.path(dir.data,"pf_ver3.1_4Apr24_needupdatingtonewmethod.RDS"))
 
 # Read in genetic stock identification (2005-2019) 
 # (adjusted to capture early and late runs) and days not covered by GSI
-GSI_by_year <- readRDS(file = file.path(dir.data,"GSI by year unadj 21Mar23.RDS"))
+GSI_by_year <- readRDS(file = file.path(dir.data,"GSI by year unadj 4Apr24.RDS"))
 
 # Read in PSS observation error estimates ( Not currently used in any models)
 PSS_sd <- readRDS(file = file.path(dir.data,"PSS SD 1995_2021.RDS"))
 
 # Midpoint from cum dist fitting for individual years
-logistic.all <- read.csv(file = file.path(dir.output,"logistic curve parameters All Chinook 1995_2022.csv"))
+logistic.all <- read.csv(file = file.path(dir.data,"logistic curve parameters All Chinook 1995_2022.csv"))
 
 # Logistic curve parameters from fitting to each year (Used as informative prior)
-logistic.mean <- readRDS(file = file.path(dir.data,"fit logistic for midpoint 18Apr23.RDS"))
+# logistic.mean <- readRDS(file = file.path(dir.data,"fit logistic for midpoint 18Apr23.RDS"))
 
 # Normal dist parameters from fitting to each year (Used as informative prior)
-normal.all <- read.csv(file = file.path(dir.output,"normal curve parameters All Chinook 1995_2022.csv"))
+normal.all <- read.csv(file = file.path(dir.data,"normal curve parameters All Chinook 1995_2022.csv"))
 
 # Control Section #############################################################################################
 # This is where users can input dates, stan model, and stan model controls.
 
 # Model Version
-model.version <- "PSSprop_ESprop"
+model.version <- "PSSnormal_ESprop"
 
 # Range of years 1995 to current year
-myYear <- 2019
+myYear <- 2022
 
 # Range of days 152 -243
-myDay <- 153
+myDay <- 200
 
 # MCMC Parameters
 n.chains <- 4   # Number of chains to run
@@ -121,10 +125,14 @@ endDayPSS <- 250
 pf <- log(pf_hist$mean[pf_hist$Year == myYear])
 
 # Past preseason forecasts for to compute sd for prior in stan model
-PF_vect <- pf_hist$mean[pf_hist$Year != myYear]
+PF_vect <- pf_hist$mean[pf_hist$Year != myYear 
+                        & pf_hist$Year != 2024 # No canadian total for 2024 yet...
+                        ]
 
 # Names for accounting
-names(PF_vect) <-  pf_hist$Year[pf_hist$Year != myYear]
+names(PF_vect) <-  pf_hist$Year[pf_hist$Year != myYear
+                                & pf_hist$Year != 2024
+                                ]
 
 # EOS reconstructed runsize for past years that have a preseason forecast 
 EOS <- CAN_hist$can.mean[CAN_hist$Year >= 2007 & 
@@ -137,7 +145,9 @@ names(EOS) <- CAN_hist$Year[CAN_hist$Year >= 2007 &
 pf_sigma <- sd(log(PF_vect/EOS))
 
 # Years in PF
-yearPF <- unique(pf_hist$Year[pf_hist$Year != myYear])
+yearPF <- unique(pf_hist$Year[pf_hist$Year != myYear
+                              & pf_hist$Year != 2024
+                              ])
 
 n_yearsPF <- length(yearPF)
 
@@ -583,23 +593,24 @@ n_ps_alpha_log <- length(ps_alpha.log)
 #   }
 
 # Inits list for model PSSnorm_ESprop
-# inits<-  function(){
-#   list(
-#     # "ps_alpha_curr" = runif(1,15e3,17e3),
-#     "ps_alpha_curr" = runif(1,10e4,11e4),
-#     "ps_mu_curr" = runif(1,172,175),
-#     "ps_sd_curr" = runif(1,5,7),
-#     "ps_alpha_hist" = runif(n_yearPSS,10e4,11e4),
-#     "ps_mu_hist" = runif(n_yearPSS,172,175),
-#     "ps_sd_hist" = runif(n_yearPSS,5,7),
-#     "sigma" = runif(1,2,3),
-#     "sigma_hist" = runif(n_yearPSS,2,3),
-#     "beta" = runif(1,0,0.5),
-#     "sigma_reg" = runif(1,0.2,0.5),
-#     "alpha" = runif(1,10,11),
-#     
-#   )
-# }
+inits<-  function(){
+  list(
+    # "ps_alpha_curr" = runif(1,15e3,17e3),
+    "ps_alpha_curr" = runif(1,10e4,11e4),
+    "ps_mu_curr" = runif(1,172,175),
+    "ps_sd_curr" = runif(1,5,7),
+    "ps_alpha_hist" = runif(n_yearPSS,10e4,11e4),
+    "ps_mu_hist" = runif(n_yearPSS,172,175),
+    "ps_sd_hist" = runif(n_yearPSS,5,7),
+    "sigma" = runif(1,2,3),
+    "sigma_hist" = runif(n_yearPSS,2,3),
+    "beta" = runif(1,0,0.5),
+    "sigma_reg" = runif(1,0.2,0.5),
+    "alpha" = runif(1,10,11)
+
+  )
+
+  }
 
 # Inits list for PSSlogistic_ESprop
 # inits <-function(){
@@ -624,7 +635,7 @@ n_ps_alpha_log <- length(ps_alpha.log)
 inits_ll <- list(inits(), inits(), inits(), inits())
 
 # Run the stan model
-fit <- stan(file = file.path(dir.stan,paste("Yukon Inseason Forecast ",
+fit <- stan(file = file.path(dir.stan,paste("ADFG Yukon Inseason Forecast ",
                                             model.version ,".stan", sep = "")), #model.version from above
             data = list("PSS_mat"=PSS_mat,
                         "PSS_mat_all" = PSS_mat_all,
@@ -703,7 +714,7 @@ fit <- stan(file = file.path(dir.stan,paste("Yukon Inseason Forecast ",
                         "cum_curr_PSS" = cum_curr_PSS 
                         
             ),
-            # init = inits_ll, # Inits list. Uncomment to use
+            # init = inits_ll, #Uncomment to use starting values list (Inits List)
             chains = n.chains,
             iter = n.iter, 
             thin = n.thin, 
@@ -717,7 +728,7 @@ fit <- stan(file = file.path(dir.stan,paste("Yukon Inseason Forecast ",
 
 # Figures Section #####################################################
 
-# Trace plots to check for convergence
+# Trace plots to check for convergence parameters of interest
 traceplot(object = fit, c(
   "alpha",
   "beta",
@@ -731,113 +742,23 @@ traceplot(object = fit, c(
   # "RunSize"
 ))
 
-
-# Launch shiny app (Eady way to look at diagnostic plots)
+ 
+# Launch shiny app (Eady way to look at diagnostic plots) ######################
 # shinystan::launch_shinystan(as.shinystan(fit)) # Uncomment to use
 
-# Extract parameter estimates for plotting & analysis
+# Extract parameter estimates for plotting & analysis ##########################
 pars <- rstan::extract(fit)
 
-# Note that the following figures only work for some models
+#***Note that the following figures only work for select models***
 
-# Regression plot (PSSreg_ESprop) ##############################################
-
-# Get the quantiles for predPSS from model output
+# Get the quantiles for plotting regression plots below
 quant.predPSS <- apply(X = pars$predPSS, 
                        MARGIN = 2, 
                        FUN = quantile, 
                        probs=c(0.025, 0.25, 0.5, 0.75, 0.975))
 
-# Get the quantiles for predPSS from model output
-# quant.predPSS2 <- apply(X = pars$cum_predicted_histPSS, 
-#                         MARGIN = 2, 
-#                         FUN = quantile, 
-#                         probs=c(0.025, 0.25, 0.5, 0.75, 0.975))
 
-
-# Get order of cumPSS for polygon below
-ord <- order(cumPSS)
-
-# Regression plot for non-GSI-adjusted PSS passage
-plot(x = cumPSS/1000, y = totalEOS/1000,
-     type = "p",
-     pch = 21,
-     bg = "red",
-     xlab = expression(Sigma ~ PSS[D] ~("1000's"~ Chinook ~Salmon)),
-     ylab = "Total EOS Canadian Chinook Salmom (1000's)",
-     xlim = c(0,(max(cumPSS))/1000),
-     ylim = c(0, (max(totalEOS)/1000)+10),
-     cex.axis = 1.5,
-     cex.lab = 1.5)
-polygon(x = c(cumPSS[ord]/1000, rev(cumPSS[ord]/1000)),
-        y = c(quant.predPSS[1,ord]/1000,rev(quant.predPSS[5,ord]/1000)),
-        col=rgb(1,0,0, alpha=0.2), border=FALSE)
-polygon(x = c(cumPSS[ord]/1000, rev(cumPSS[ord]/1000)),
-        y = c(quant.predPSS[2,ord]/1000,rev(quant.predPSS[4,ord]/1000)),
-        col=rgb(1,0,0, alpha=0.2), border=FALSE)
-lines(x = cumPSS[ord]/1000, quant.predPSS[3,ord]/1000, col = "red", lw = 2)
-points(x = pars$cum_predicted_histPSS[1,]/1000, y = totalEOS/1000, cex = 3)
-
-# Add years to plot
-text(x = cumPSS/1000, y = (totalEOS/1000)+8, labels = yearPSS)
-points(x = sum(PSS_hist$count[PSS_hist$Day <= myDay &
-                                PSS_hist$Year == myYear])/1000, 
-       y = CAN_hist$can.mean[CAN_hist$Year == myYear]/1000,
-       cex = 3,
-       lwd = 5,
-       col = "Blue",
-       pch = 23,
-       bg = "red"
-)
-text(x = sum(PSS_hist$count[PSS_hist$Day <= myDay &
-                              PSS_hist$Year == myYear])/1000, 
-     y = (CAN_hist$can.mean[CAN_hist$Year == myYear]/1000)+10,
-     labels = myYear,
-     col = "Blue",
-     cex = 2)
-
-# Regression plot for GSI adjusted passage (PSSreg_GSI) ########################
-# Order for polygon
-ord <- order(cumPSS_adj)
-
-# Regression plot
-plot(x = cumPSS_adj/1000, y = totalEOS/1000,
-     type = "p",
-     pch = 21,
-     bg = "red",
-     # xlab = paste("\sigma PSS Passage (1000's Chinook Salmon), 1995-",
-     #              myYear-1,")" ),
-     xlab = expression(Sigma ~ PSS[D] ~("1000's"~ Chinook ~Salmon)),
-     ylab = "Total EOS Canadian Chinook Salmom (1000's)",
-     # main = paste("Predicted PSS Fit","1995 to",
-     # myYear-1,"\n Day 152 to",
-     # myDay,"\n Model Version",model.version),
-     xlim = c(0,max(cumPSS_adj)/1000),
-     ylim = c(min(quant.predPSS/1000, totalEOS/1000), max(quant.predPSS/1000)+10),
-     cex.axis = 1.5,
-     cex.lab = 1.5)
-polygon(x = c(cumPSS_adj[ord]/1000, rev(cumPSS_adj[ord]/1000)),
-        y = c(quant.predPSS[1,ord]/1000,rev(quant.predPSS[5,ord]/1000)),
-        col=rgb(1,0,0, alpha=0.2), border=FALSE)
-polygon(x = c(cumPSS_adj[ord]/1000, rev(cumPSS_adj[ord]/1000)),
-        y = c(quant.predPSS[2,ord]/1000,rev(quant.predPSS[4,ord]/1000)),
-        col=rgb(1,0,0, alpha=0.2), border=FALSE)
-lines(x = cumPSS_adj[ord]/1000, quant.predPSS[3,ord]/1000, col = "red", lw = 2)
-text(x = cumPSS_adj/1000, y = (totalEOS/1000)+10, labels = yearPSS)
-points(x = max(cum_curr_PSS)/1000* mean(GSI_avg), 
-       y = CAN_hist$can.mean[CAN_hist$Year == myYear]/1000,
-       col = "green",
-       pch = 25,
-       bg = "blue",
-       lwd = 2,
-       cex = 2
-)
-text(x = max(cum_curr_PSS)/1000* mean(GSI_avg)+12, 
-     y = CAN_hist$can.mean[CAN_hist$Year == myYear]/1000,
-     labels = myYear,
-     cex = 2)
-
-# Regression for EOS PSS vs Can EOS (PSSnormal_ESprop)
+# Regression for EOS PSS vs Can EOS (PSSnormal_ESprop) ################################
 # Get order of cumPSS for polygon below
 cumPSS_all <- apply(PSS_mat_all, 2, sum)
 
@@ -889,6 +810,11 @@ text(x = sum(PSS_hist$count[
 
 # Get the quantiles for predPSS from model output
 quant.predEagle <- apply(X = pars$predEagle, 
+                         MARGIN = 2, 
+                         FUN = quantile, 
+                         probs=c(0.025, 0.25, 0.5, 0.75, 0.975))
+
+quant.predEagle <- apply(X = exp(pars$sigma_predEagle), 
                          MARGIN = 2, 
                          FUN = quantile, 
                          probs=c(0.025, 0.25, 0.5, 0.75, 0.975))
@@ -1007,18 +933,11 @@ ggplot(masterDF, aes(x = Days,  y = count/1000))+
   labs(x = "",
        y = "")+
   # theme_linedraw(base_line_size = 0)+
-  # theme(text = element_text(size = 20, family = "serif"),
-  #       panel.grid.major =element_line(),    #strip major gridlines
-  #       panel.grid.minor = element_blank(),    #strip minor gridlines
-  #       axis.ticks = element_blank(),
-  #       panel.background = element_blank(),
-  #       axis.line = element_line(color = "black"))+
-  
   scale_fill_colorblind(name = "")+
   scale_color_colorblind(name = "")+
-  facet_wrap(~Year, nrow = 6, scales = "free_y")
-
-
+  facet_wrap(~Year, nrow = 6, scales = "free_y")+
+  theme(legend.position = "top")
+  
 # Logistic Curve  model fit PSSlogistic_ESprop ##########################
 
 # Loop through years to calculate quantiles and put into data frame for plotting
@@ -1123,7 +1042,7 @@ ggplot(df.comb, aes(x = value/1000, fill = par))+
   #                color = "End of Season Runsize"),
   #            linetype = 2,
   #            size = 1)+
-  geom_vline(aes(xintercept  = mean(pars$RunSize)/1000))+
+  # geom_vline(aes(xintercept  = mean(pars$RunSize)/1000))+
   
   # xlim(c(0,300000))+
   coord_cartesian(xlim = c(0,200))+
@@ -1150,20 +1069,19 @@ ggplot(df.comb, aes(x = value/1000, fill = par))+
   scale_color_discrete(name = "")
 
 
+# Eye density plots
 ggplot(df.comb, aes(x = value/1000, y =fct_rev( par)))+
   stat_eye(aes(fill = after_stat(level)), .width = c(.8,.95,1), alpha = .5)+
-  geom_vline(aes(xintercept = CAN_hist$can.mean[CAN_hist$Year == myYear]/1000,
-                 color = "End of Season Runsize"),
-             linetype = 2,
-             size = 1)+
+  # geom_vline(aes(xintercept = CAN_hist$can.mean[CAN_hist$Year == myYear]/1000,
+  #                color = "End of Season Runsize"),
+  #            linetype = 2,
+  #            size = 1)+
   coord_cartesian(xlim = c(0,200))+
   # ylim(c(0,500))
   labs(x = "1000's of Chinook Salmon", 
        fill = "Parameters", 
        y = "Parameter")+
-  # scale_fill_discrete(name = "Parameters", 
-  # labels = c( "Preseason Forecast (Prior)", 
-  # "PSS Prediction","Runsize"))+
+  scale_fill_manual(values = c("darkblue","blue","lightblue"))+
   scale_x_continuous()+
   # scale_fill_colorblind(name = "", 
   #                       labels = c( "Preseason Forecast (Prior)",
@@ -1210,36 +1128,31 @@ df.comb$par <- relevel(df.comb$par,"Prior")
 # Density plots comparing pf, linear prediction, and posterior estimate
 ggplot(df.comb, aes(x = value/1000, fill = par))+
   geom_density(alpha = .5)+
-  ggtitle(paste("Density plot for",myYear,", day",myDay,"\n Version", model.version))+
-  theme_classic()+
-  geom_vline(aes(xintercept = CAN_hist$can.mean[CAN_hist$Year == myYear]/1000,
-                 color = "End of Season Runsize"),
-             linetype = 2,
-             size = 1)+
-  
-  # xlim(c(0,300000))+
+  ggtitle(paste("Canadian Chinook Inseason Projection"), 
+          subtitle = paste0("Year:",myYear,"\nDay:",myDay,"\nVersion:", model.version) )+
+  # geom_vline(aes(xintercept = CAN_hist$can.mean[CAN_hist$Year == myYear]/1000, # Realized run size
+  #                color = "End of Season Runsize"),
+  #            linetype = 2,
+  #            size = 1)+
   coord_cartesian(xlim = c(0,250))+
-  # ylim(c(0,500))
   labs(x = "1000's of Chinook Salmon", 
        fill = "Parameters", 
        y = "Probability Density")+
-  # scale_fill_discrete(name = "Parameters", 
-  # labels = c( "Preseason Forecast (Prior)", 
-  # "PSS Prediction","Runsize"))+
   scale_x_continuous()+
   scale_fill_colorblind(name = "",
                         labels = c( "Preseason Forecast (Prior)",
                                     "Eagle Prediction",
                                     "PSS Prediction",
                                     "Runsize"))+
+  scale_color_discrete(name="")+
   # theme_tidybayes(element_text(size = 20))+
   theme(text = element_text(size = 20, family = "serif"),
         panel.grid.major =element_line(),    #strip major gridlines
         panel.grid.minor = element_blank(),    #strip minor gridlines
         axis.ticks = element_blank(),
         panel.background = element_blank(),
-        axis.line = element_line(color = "black"))+
-  scale_color_discrete(name = "")
+        axis.line = element_line(color = "black"),
+        legend.position = "top")
 
 
 # Logistic curve fit ###################################################

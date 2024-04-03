@@ -42,7 +42,8 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
                                normal = FALSE,     # Running version 4?
                                multiplier = 1,     # Remove me!!!!!
                                startDayPSS = 148,  # First day of PSS calculation
-                               startYearPSS = 1995 # Start Year PSS
+                               startYearPSS = 1995,# First year to include in PSS
+                               endYear             # Last Complete Year
 ){
   
   ## For testing
@@ -89,11 +90,11 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   
   # Vector of historical preseason forecasts for to compute sd for prior in stan model
   PF_vect <- pf_hist$mean[
-    # pf_hist$Year <= 2021 &
+    pf_hist$Year <= endYear &
     pf_hist$Year != myYear]
   
   names(PF_vect) <-  pf_hist$Year[
-    # pf_hist$Year <= 2021 &
+    pf_hist$Year <= endYear &
     pf_hist$Year != myYear]
   
   
@@ -110,7 +111,7 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   
   # Years in PF
   yearPF <- unique(pf_hist$Year[pf_hist$Year != myYear 
-                                # &  pf_hist$Year <= 2021
+                                &  pf_hist$Year <= endYear
   ])
   
   n_yearsPF <- length(yearPF)
@@ -756,7 +757,7 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
     
   }
   
-  fit <- stan(file = file.path(dir.stan,paste("Yukon Inseason Forecast ", model.version ,".stan", sep = "")),
+  fit <- stan(file = file.path(dir.stan,paste("ADFG Yukon Inseason Forecast ", model.version ,".stan", sep = "")),
               data = list("PSS_mat"=PSS_mat,
                           "n_totalEOS"=n_totalEOS,
                           "totalEOS"=totalEOS, 
