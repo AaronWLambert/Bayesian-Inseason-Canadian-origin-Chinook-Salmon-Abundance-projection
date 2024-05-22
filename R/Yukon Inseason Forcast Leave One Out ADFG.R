@@ -88,7 +88,7 @@ logistic.all <- read.csv(file = file.path(dir.data,"logistic curve parameters Al
 # logistic.mean <- readRDS(file = file.path(dir.data,"fit logistic for midpoint 18Apr23.RDS"))
 
 # Normal dist parameters from fitting to each year (Used as informative prior)
-normal.all <- read.csv(file = file.path(dir.data,"normal curve parameters All Chinook 1995_2022.csv"))
+normal.all <- readRDS(file = file.path(dir.data,"normal curve parameters All Chinook 1995_2023.RDS"))
 
 # Control Section #############################################################################################
 # This is where users can input dates, stan model, and stan model controls.

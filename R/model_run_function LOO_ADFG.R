@@ -29,18 +29,17 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
                                n.thin ,            # Thinning rate
                                CAN_hist,           # EOS total Canadian-origin Chinook est (DF)
                                PSS_hist,           # Daily PSS passage (DF)
-                               GSI_by_year,        # Genetic apportionment of Can-origing Chinook
+                               GSI_by_year,        # Genetic apportionment of Can-origin Chinook
                                pf_hist,            # PF for 2007-present
                                Eagle_hist,         # Eagle sonar passage
                                PSS_sd,             # Variance estimates for PSS
-                               norton.sst,         # SST
-                               Emmonak_Air_Temp,   # Air Temp
+                               # norton.sst,         # SST
+                               # Emmonak_Air_Temp,   # Air Temp
                                prior.df.log,       # priors for logistic params
                                prior.df.norm,      # priors for normal params
                                savefit = FALSE,    # Whether to save the fit object
                                logistic = FALSE,   # Running version 5?
                                normal = FALSE,     # Running version 4?
-                               multiplier = 1,     # Remove me!!!!!
                                startDayPSS = 148,  # First day of PSS calculation
                                startYearPSS = 1995,# First year to include in PSS
                                endYear             # Last Complete Year
@@ -51,9 +50,9 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   # myYear = 2011
   # myDay = 183
   # n.chains = 4
-  # n.iter = 10000
+  # n.iter = 1000
   # n.thin = n.thin
-  # CAN_hist = CAN_hist_old
+  # CAN_hist = CAN_hist
   # PSS_hist = PSS_hist
   # Eagle_hist = Eagle_hist
   # # GSI_mean = GSI_mean,
@@ -63,6 +62,7 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   # logistic = FALSE
   # startDayPSS = 148
   # startYearPSS = 1995
+  # endYear = end.year
   # prior.df.log = logistic.all
   # prior.df.norm = normal.all
   # PSS_sd = PSS_sd
@@ -100,9 +100,11 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   
   # EOS reconstructed runsize for historic years that have a preseason forecast 
   EOS <- CAN_hist$can.mean[CAN_hist$Year >= 2007 & 
+                             CAN_hist$Year <= endYear &
                              CAN_hist$Year != myYear]
   
   names(EOS) <- CAN_hist$Year[CAN_hist$Year >= 2007 & 
+                                CAN_hist$Year <= endYear &
                                 CAN_hist$Year != myYear
   ]
   
@@ -117,17 +119,19 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   n_yearsPF <- length(yearPF)
   
   
-  # Historic EOS Reconcstructed Can-origin Run Size ############################################
+  # Historic EOS Reconstructed Can-origin Run Size ############################################
   
   # Vector of run sizes excluding the year of interest
   totalEOS <- CAN_hist$can.mean[CAN_hist$Year != 1996 &   # No PSS 1996
                                   CAN_hist$Year != myYear &
-                                  CAN_hist$Year >= startYearPSS ]
+                                  CAN_hist$Year >= startYearPSS &
+                                  CAN_hist$Year <= endYear]
   
   # Name the elements for accounting purposes
   names(totalEOS) <- CAN_hist$Year[CAN_hist$Year != 1996 &   # No PSS 1996
                                      CAN_hist$Year != myYear &
-                                     CAN_hist$Year >= startYearPSS ]
+                                     CAN_hist$Year >= startYearPSS &
+                                     CAN_hist$Year <= endYear]
   
   # Number of years included in EOS
   n_totalEOS <- length(totalEOS)
@@ -137,7 +141,8 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   # Vector of historic PSS years excluding myYear
   yearPSS <- unique(PSS_hist$Year[PSS_hist$Year != myYear &
                                     PSS_hist$Year != 1996 &
-                                    PSS_hist$Year >= startYearPSS
+                                    PSS_hist$Year >= startYearPSS &
+                                    PSS_hist$Year <= endYear
   ])
   
   # Number of years used in model
@@ -191,7 +196,8 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
                                   PSS_hist$Year <= max(CAN_hist$Year) &
                                   PSS_hist$Day <= (myDay) &
                                   PSS_hist$Day >= (startDayPSS) &
-                                  PSS_hist$Year >= startYearPSS])
+                                  PSS_hist$Year >= startYearPSS &
+                                  PSS_hist$Year <= endYear])
   
   # The number of observations in count_vector for PSS historic counts
   # n_hist_counts <- length(count_vect)
@@ -213,6 +219,7 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   # Cumulative PSS matrix
   cum_PSS_mat <-  apply(PSS_mat, 2, cumsum)
   
+  # Total up to day of interest
   cumPSS <- apply(PSS_mat,2,sum)
   
   # PSS martix of all the passage for historic/retro years
@@ -231,7 +238,8 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   (count_vect_all <- PSS_hist$count[PSS_hist$Year != myYear &
                                       PSS_hist$Year >= startYearPSS &
                                       PSS_hist$Day <= endDayPSS &
-                                      PSS_hist$Day >= startDayPSS ])
+                                      PSS_hist$Day >= startDayPSS &
+                                      PSS_hist$Year <= endYear])
   
   
   # The number of observations in count_vector for PSS historic counts
@@ -283,16 +291,11 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   
   # Vector of historic Eagle Sonar passage excluding myYear
   yearEagle <- unique(Eagle_hist$Year[Eagle_hist$Year != myYear 
-                                      # & Eagle_hist$Year <= 2021
+                                      & Eagle_hist$Year <= endYear
   ])
   
   # Number of Eagle sonar years used in model
   n_yearEagle <- length(yearEagle)
-  
-  # # Eagle days included up to myDay
-  #     151 is subtracted for use in logistic model
-  #      #  I.e., June 1 = 1, June 2 = 2 ....
-  # dayPSS <- unique(PSS_hist$Day[PSS_hist$Day <=(myDay)])-147 *******
   
   dayEagle <- unique(Eagle_hist$Day[Eagle_hist$Day <=(myDay) & 
                                       Eagle_hist$Day>= startDayPSS])
@@ -344,7 +347,8 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   (count_vect_Eagle <- Eagle_hist$count[Eagle_hist$Year != myYear &
                                           # Eagle_hist$Year <= 2021 &
                                           Eagle_hist$Day <= (myDay) &
-                                          Eagle_hist$Day >= (startDayPSS)])
+                                          Eagle_hist$Day >= (startDayPSS) &
+                                          Eagle_hist$Year <= endYear])
   
   # The number of observations in count_vector for PSS historic counts
   n_hist_Eaglecounts <- length(count_vect_Eagle)
@@ -371,22 +375,27 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
       }
     }
   }
+  
   # Fill in the rest of the matrix with zeros
   Eagle_mat[is.na(Eagle_mat)]<-0
   
   # Cumulative count matrix for historic years
-  Eagle_cum_hist_mat <- apply(X = Eagle_mat,MARGIN = 2,FUN = cumsum)
+  Eagle_cum_hist_mat <- apply(X = Eagle_mat, 
+                              MARGIN = 2,
+                              FUN = cumsum)
   
-  # Cumulative Counts by year for plotting
-  cumEagle <- apply(Eagle_mat,MARGIN = 2,sum)
+  # Total counts by year up to myDay for plotting
+  cumEagle <- apply(Eagle_mat, 
+                    MARGIN = 2,
+                    sum)
   
-  # Calculate the proportion for day D for each year Y
+  # Calculate the cumulative proportion for day D for each year Y
   prop_Eagle <- cumEagle/totalEOS[loc.eagle.years]
   
   # Mean proportion
   mean_prop_Eagle <- mean(prop_Eagle)
   
-  # Vector containing avg GSI proportions for each day ACROSS ALL YEARS (for versions 3.0,3.1,3.2,3.3/ PSSreg_GSI) ####
+  # Vector containing avg GSI proportions for each day ACROSS ALL YEARS (PSSreg_GSI) ####
   meanGSI_vect <- vector(length = n_dayPSS)
   
   names(meanGSI_vect) <- dayPSS
@@ -402,12 +411,14 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
     meanGSI_vect[counter]<- mean(GSI_by_year$propCan[GSI_by_year$startday <= d &
                                                        GSI_by_year$endday >=d &
                                                        GSI_by_year$year != myYear &
-                                                       GSI_by_year$year != 2013])
+                                                       GSI_by_year$year != 2013 & # unreliable year
+                                                       GSI_by_year$year <= endYear])
     
     sdGSI_vect[counter]<- sd(GSI_by_year$propCan[GSI_by_year$startday <= d &
                                                    GSI_by_year$endday >=d &
                                                    GSI_by_year$year != myYear &
-                                                   GSI_by_year$year != 2013])
+                                                   GSI_by_year$year != 2013 & # unreliable year
+                                                   GSI_by_year$year <= endYear])
     
     counter <- counter+1
   }
@@ -417,6 +428,7 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   
   sdGSI_vect[1:2] <- sdGSI_vect[3]
   
+  # This is can be used to plot GSI regression (not used in stan model)
   # Mean across days for all season
   meanGSI_vect_all <- vector(length = n_dayPSS_all)
   
@@ -429,9 +441,15 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   counter <- 1
   for (d in dayPSS_all) {
     # d = 175
-    meanGSI_vect_all[counter]<- mean(GSI_by_year$propCan[GSI_by_year$startday <= d & GSI_by_year$endday >=d])
+    meanGSI_vect_all[counter]<- mean(GSI_by_year$propCan[GSI_by_year$startday <= d & 
+                                                           GSI_by_year$endday >=d &
+                                                         GSI_by_year$year != 2013 & # unreliable year
+                                                           GSI_by_year$year <= endYear])
     
-    sdGSI_vect_all[counter]<- sd(GSI_by_year$propCan[GSI_by_year$startday <= d & GSI_by_year$endday >=d])
+    sdGSI_vect_all[counter]<- sd(GSI_by_year$propCan[GSI_by_year$startday <= d & 
+                                                       GSI_by_year$endday >=d &
+                                                       GSI_by_year$year != 2013 & # unreliable year
+                                                       GSI_by_year$year <= endYear])
     
     counter <- counter+1
   }
@@ -447,45 +465,45 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   
   sdGSI_vect_all[is.na(sdGSI_vect_all)] <- sdGSI_vect_all["248"]
   
-  # Mean GSI by strata & dates by mean start and end of stata dates (Not used)#################
-  meanStartDay <-GSI_by_year %>%
-    filter(year != 2013 & year != myYear) %>% 
-    group_by(stratum) %>% 
-    summarise("meanStartDay" = mean(startday)) %>% 
-    as.data.frame()
-  
-  GSI_mean_by_strata <-GSI_by_year %>% 
-    filter(year != 2013 & year != myYear) %>% 
-    summarize("stratumMean" = c(mean(propCan[stratum == 1]),
-                                mean(propCan[stratum == 2]),
-                                mean(propCan[stratum == 3 | stratum == 4])),
-              "stratumSD" = c(sd(propCan[stratum == 1]),
-                              sd(propCan[stratum == 2]),
-                              sd(propCan[stratum == 3 | stratum == 4]))) %>%  as.data.frame()
-  
-  GSI <- cbind(GSI_mean_by_strata,round(meanStartDay[1:3,]))
-  
-  GSI_avg <-c(rep(GSI$stratumMean[GSI$stratum == 1], 
-                  times = length(startDayPSS:GSI$meanStartDay[GSI$stratum==2]-1)),
-              rep(GSI$stratumMean[GSI$stratum == 2], 
-                  times = length(GSI$meanStartDay[GSI$stratum==2]:GSI$meanStartDay[GSI$stratum == 3]-1)),
-              rep(GSI$stratumMean[GSI$stratum == 3],
-                  times = length(GSI$meanStartDay[GSI$stratum == 3]:max(PSS_hist$Day))))
-  
-  GSI_avg_vect <- GSI_avg[1:n_dayPSS]
-  
-  GSI_avg_vect_all <- GSI_avg[1:n_dayPSS_all]
-  
-  GSI_sd <- c(rep(GSI$stratumSD[GSI$stratum == 1], 
-                  times = length(startDayPSS:GSI$meanStartDay[GSI$stratum==2]-1)),
-              rep(GSI$stratumSD[GSI$stratum == 2], 
-                  times = length(GSI$meanStartDay[GSI$stratum==2]:GSI$meanStartDay[GSI$stratum == 3]-1)),
-              rep(GSI$stratumSD[GSI$stratum == 3],
-                  times = length(GSI$meanStartDay[GSI$stratum == 3]:max(PSS_hist$Day))))
-  
-  GSI_sd_vect <- GSI_sd[1:n_dayPSS]
-  
-  GSI_sd_vect_all <- GSI_sd[1:n_dayPSS_all]
+  # Mean GSI by strata & dates by mean start and end of srtata dates (Not used)#################
+  # meanStartDay <-GSI_by_year %>%
+  #   filter(year != 2013 & year != myYear) %>% 
+  #   group_by(stratum) %>% 
+  #   summarise("meanStartDay" = mean(startday)) %>% 
+  #   as.data.frame()
+  # 
+  # GSI_mean_by_strata <-GSI_by_year %>% 
+  #   filter(year != 2013 & year != myYear) %>% 
+  #   summarize("stratumMean" = c(mean(propCan[stratum == 1]),
+  #                               mean(propCan[stratum == 2]),
+  #                               mean(propCan[stratum == 3 | stratum == 4])),
+  #             "stratumSD" = c(sd(propCan[stratum == 1]),
+  #                             sd(propCan[stratum == 2]),
+  #                             sd(propCan[stratum == 3 | stratum == 4]))) %>%  as.data.frame()
+  # 
+  # GSI <- cbind(GSI_mean_by_strata,round(meanStartDay[1:3,]))
+  # 
+  # GSI_avg <-c(rep(GSI$stratumMean[GSI$stratum == 1], 
+  #                 times = length(startDayPSS:GSI$meanStartDay[GSI$stratum==2]-1)),
+  #             rep(GSI$stratumMean[GSI$stratum == 2], 
+  #                 times = length(GSI$meanStartDay[GSI$stratum==2]:GSI$meanStartDay[GSI$stratum == 3]-1)),
+  #             rep(GSI$stratumMean[GSI$stratum == 3],
+  #                 times = length(GSI$meanStartDay[GSI$stratum == 3]:max(PSS_hist$Day))))
+  # 
+  # GSI_avg_vect <- GSI_avg[1:n_dayPSS]
+  # 
+  # GSI_avg_vect_all <- GSI_avg[1:n_dayPSS_all]
+  # 
+  # GSI_sd <- c(rep(GSI$stratumSD[GSI$stratum == 1], 
+  #                 times = length(startDayPSS:GSI$meanStartDay[GSI$stratum==2]-1)),
+  #             rep(GSI$stratumSD[GSI$stratum == 2], 
+  #                 times = length(GSI$meanStartDay[GSI$stratum==2]:GSI$meanStartDay[GSI$stratum == 3]-1)),
+  #             rep(GSI$stratumSD[GSI$stratum == 3],
+  #                 times = length(GSI$meanStartDay[GSI$stratum == 3]:max(PSS_hist$Day))))
+  # 
+  # GSI_sd_vect <- GSI_sd[1:n_dayPSS]
+  # 
+  # GSI_sd_vect_all <- GSI_sd[1:n_dayPSS_all]
   
   # Create matrix with dimensions myday and myYear
   PSS_mat_adj <- matrix(nrow = n_dayPSS,
@@ -496,7 +514,7 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   
   rownames(PSS_mat_adj) <- dayPSS
   
-  
+  # Can be used for plotting outputs (not used in model)
   for (y in 1:n_yearPSS) {
     for (d in 1:n_dayPSS) {
       # y = 1
@@ -506,6 +524,8 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
     }
     
   }
+  
+  # Just for plotting....
   # Create matrix with dimensions myday and myYear
   PSS_mat_all_adj <- matrix(nrow = (length(startDayPSS:endDayPSS )),
                             #start 1996 to account for missing year 1996
@@ -561,15 +581,15 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   # Logistic parameters for informative prior (PSSlogistic_ESprop)
   ps_m <- prior.df.log$mid[prior.df.log$year != myYear &
                              prior.df.log$year >= startYearPSS &
-                             prior.df.log$year <= 2022]
+                             prior.df.log$year <= endYear]
   
   ps_s <- prior.df.log$sd[prior.df.log$year != myYear&
                             prior.df.log$year >= startYearPSS &
-                            prior.df.log$year <= 2022]
+                            prior.df.log$year <= endYear]
   
   ps_alpha_log <- prior.df.log$alpha[prior.df.log$year != myYear&
                                        prior.df.log$year >= startYearPSS &
-                                       prior.df.log$year <= 2022]
+                                       prior.df.log$year <= endYear]
   
   n_ps_m <- length(ps_m)
   n_ps_s <- length(ps_s)
@@ -578,15 +598,15 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   # Normal distribution parameters for informative priors (PSSnormal_ESprop)
   ps_mu <- prior.df.norm$mid[prior.df.norm$year != myYear &
                                prior.df.norm$year >=startYearPSS &
-                               prior.df.norm$year <= 2022]
+                               prior.df.norm$year <= endYear]
   
   ps_sd <- prior.df.norm$sd[prior.df.norm$year != myYear&
                               prior.df.norm$year >=startYearPSS &
-                              prior.df.norm$year <= 2022]
+                              prior.df.norm$year <= endYear]
   
   ps_alpha_norm <- prior.df.norm$alpha[prior.df.norm$year != myYear&
                                          prior.df.norm$year >=startYearPSS &
-                                         prior.df.norm$year <= 2022]
+                                         prior.df.norm$year <= endYear]
   
   n_ps_mu <- length(ps_mu)
   n_ps_sd <- length(ps_sd)
@@ -736,14 +756,14 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
   
   if(normal == FALSE & logistic == FALSE){
     #Used for all regression based models except below
-    # inits <- function(){ 
-    #   list( alpha = runif(1,150000,200000),
-    #         beta = runif(1,0,0.5),
-    #         sigma = runif(1,0,2),
-    #         ln_phi = runif(1,-1,1),
-    #         propCAN_logit = runif(n_dayPSS,0,1)
-    #   )
-    # }
+    inits <- function(){
+      list( alpha = runif(1,150000,200000),
+            beta = runif(1,0,0.5),
+            sigma = runif(1,0,2),
+            ln_phi = runif(1,-1,1),
+            propCAN_logit = runif(n_dayPSS,0,1)
+      )
+    }
     # MMSST model with beta combination of gamma and tau
     # inits <-  function(){
     #   list(    "tau" = runif(1,0.35,0.5),
@@ -772,14 +792,14 @@ InSeasonProjection <- function(model.version,      # Model version to run. (char
                           "Pf_sigma" = pf_sigma,
                           # "meanpropCAN_all" = meanGSI_vect_all,
                           # "sd_meanpropCAN_all" = sdGSI_vect_all,
-                          # "meanpropCAN" = meanGSI_vect,
-                          # "sd_meanpropCAN" = sdGSI_vect,
+                          "meanpropCAN" = meanGSI_vect,
+                          "sd_meanpropCAN" = sdGSI_vect,
                           "mean_adj_PSS_mat"=PSS_mat_adj,
                           "mean_adj_curr_PSS"= adj_curr_PSS,
-                          "meanpropCAN_all"= GSI_avg_vect_all,
-                          "sd_meanpropCAN_all" = GSI_sd_vect_all,
-                          "meanpropCAN" = GSI_avg_vect,
-                          "sd_meanpropCAN" = GSI_sd_vect,
+                          # "meanpropCAN_all"= GSI_avg_vect_all,
+                          # "sd_meanpropCAN_all" = GSI_sd_vect_all,
+                          # "meanpropCAN" = GSI_avg_vect,
+                          # "sd_meanpropCAN" = GSI_sd_vect,
                           "ps_m"= ps_m,
                           "ps_s"= ps_s,
                           "ps_alpha_log" = ps_alpha_log,

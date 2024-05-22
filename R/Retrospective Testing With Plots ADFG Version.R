@@ -44,7 +44,7 @@ mc.cores = parallel::detectCores()
 # Define Workflow Paths =========================================================================
 
 # Change to the working directory on your computer
-wd <- "C:/Users/aaron/OneDrive/Desktop/Yukon Kings/Inseason Forcast Model"
+wd <- "C:/Users/aaron/OneDrive/Desktop/ADFG Yukon Model/Yukon Chinook Bayesian Inseason Projection Model ADFG/"
 
 setwd(wd)
 
@@ -55,48 +55,55 @@ dir.stan <- file.path(wd,"Stan")
 dir.data <- file.path(wd,"Data")
 dir.R <- file.path(wd,"R")
 
-# Functions ##################################################################################
+# Functions #################################################################################
 
 # Functions to run model and get day of year using the date
-source(file = file.path(dir.R,"model_run_function LOO_ADFG.r"))
-
+source(file = file.path(dir.R,"model_run_function LOO_ADFG.R"))
 
 # Function to get retrospective stats for MAPE, RMSE, and PE
-source(file = file.path(dir.R,"Retro Function.R"))
+source(file = file.path(dir.R,"Retro Function ADFG.R"))
 
 ######### Import Data #######################################################################
-# JTC preseason forecasts 
-pf_hist <- readRDS(file.path(dir.data,"pf_ver3.1_14Aprl23_eagle+harvest.RDS"))
+# Note that these files must be updated to reflect the current methods
 
-# EOS Can-orig reconstructed counts (NEW METHOD)
-CAN_hist <- readRDS(file.path(dir.data,"Canadian Passage RR 21Mar23.RDS"))
+# JTC preseason forecasts 
+pf_hist <- readRDS(file.path(dir.data,"pf_ver3.1_4Apr24_needupdatingtonewmethod.RDS"))
+
+# EOS Can-orig reconstructed counts (NEW METHOD; Connor et al)
+CAN_hist <- readRDS(file.path(dir.data,"Canadian Chinook Passage RR 2Apr24.RDS"))
 
 # PSS Daily Passage
-PSS_hist <- readRDS(file = file.path(dir.data,"PSS passage Final 2022.RDS"))
+PSS_hist <- readRDS(file = file.path(dir.data,"PSS passage Final 2023.RDS"))
 
 # Eagle Sonar daily passage
-Eagle_hist <- readRDS(file = file.path(dir.data, "Eagle passage 23Nov22.RDS"))
+Eagle_hist <- readRDS(file = file.path(dir.data, "Eagle passage Final 2023.RDS"))
 
 # Mean GSI by strata (naive estimator)
-GSI_mean <- readRDS(file = file.path(dir.data,"Mean GSI by strata 2005-2020.RDS"))
+# GSI_mean <- readRDS(file = file.path(dir.data,"Mean GSI by strata 2005-2020.RDS"))
 
 # GSI data by year and strata  (adjusted to capture early and late runs)
-GSI_by_year <- readRDS(file = file.path(dir.data,"GSI by year unadj 21Mar23.RDS"))
+GSI_by_year <- readRDS(file = file.path(dir.data,"GSI by year unadj 4Apr24.RDS"))
 
 # Read in PSS observation error estimates
 PSS_sd <- readRDS(file = file.path(dir.data,"PSS SD 1995_2021.RDS"))
 
 # Shape parameters for logistic arrival distribution
-logistic.all <- read.csv(file = file.path(dir.output,
+logistic.all <- read.csv(file = file.path(dir.data,
                                           "logistic curve parameters All Chinook 1995_2022.csv"))
 
-normal.all <- read.csv(file = file.path(dir.output,
-                                        "normal curve parameters All Chinook 1995_2022.csv"))
+# Shape parameters for normal arrival distribution
+# normal.all <- read.csv(file = file.path(dir.data,
+#                                         "normal curve parameters All Chinook 1995_2022.csv"))
+normal.all <- readRDS(file = file.path(dir.data,"normal curve parameters All Chinook 1995_2023.RDS"))
+
 
 
 # Control Section #################################################################################
 
-# Imput model for retro testing
+# Year to conduct retro testing through
+end.year = 2022
+
+# Input model for retro testing
 model.version <- "PSSreg"
 
 # MCMC Parameters
@@ -109,7 +116,7 @@ n.thin <- 2     # Thinning rate
 testDays <- seq(from = 153, to = 243, by = 5)
 
 # Years included in retrospective testing
-testYears <- c(20007:2022)
+testYears <- c(2007:end.year)
 
 # Retrospective testing loop ######################
 
@@ -118,6 +125,8 @@ outputList<-list()
 
 # Increse memory limit (May need this for PSSnormal and PSSlogistic)
 # memory.limit(size = 60000)
+
+# Display warnings while looping over days and years
 options(warn = 1)
 for(y in c(testYears)){
   for(d in c(testDays)){
@@ -138,9 +147,9 @@ for(y in c(testYears)){
                                                                   logistic = FALSE,
                                                                   prior.df.log = logistic.all,
                                                                   prior.df.norm = normal.all,
-                                                                  multiplier = 1,
                                                                   startDayPSS = 148,
-                                                                  startYearPSS = 2005
+                                                                  startYearPSS = 2005,
+                                                                  endYear = end.year
                                                                   )
     print(paste("Day =",d,"Year =",y))
   } #dloop
@@ -160,10 +169,10 @@ saveRDS(object = outputList, file = file.path(dir.output,
 # **Note** Increase memory limit if using PSSnorm or PSSlogistic
 # memory.limit(size = 60000)
 
+# Read in the model output
 # outputlist_verPSSreg <- readRDS(file = file.path(dir.output,"VerPSSreg 27Mar24.RDS")) 
 
-
-##### Calculations for retrospecitve testing #############################################
+##### Calculations for retrospective testing #############################################
 
 # Uses retrospective.function
 #  This function calculates RMSE, MAPE, PE, and precision (not currently used)
@@ -172,11 +181,14 @@ saveRDS(object = outputList, file = file.path(dir.output,
 RetroList_verPSSreg <- retrospective.function(outputList = outputlist_verPSSreg, # The model results from above
                                          testYears = testYears,                  # The years tested 
                                          testDays = testDays,                    # The days across the season tested
-                                         CAN_hist = CAN_hist,                #
-                                         pf = FALSE)
+                                         CAN_hist = CAN_hist,                    # Reconstructed run size
+                                         pf_hist = pf_hist,                      # PF (only needed for PF retro)
+                                         startYearRetro = 2007,                  # First year of retro testing (default 2007)
+                                         endYearRetro = 2022,                    # End year retro testing (default 2022)
+                                         pf = FALSE)                             # Is this the PF? (no)
 
 # Preseason forecast
-RetroList_pf <- retrospective.function(outputList = outputlist_verPSSreg, # This can be from any model version
+RetroList_pf <- retrospective.function(outputList = outputlist_verPSSreg, # Use any output for the PF retro
                                            testYears = testYears,
                                            testDays = testDays,
                                            CAN_hist = CAN_hist_new,
@@ -251,7 +263,7 @@ ggplot(full_rmseDF, aes(x = factor(Day), y = factor(Version), fill = RMSE))+
 # Add PF for plotting
 full_rmseDF$PF <- rmseDF_pf_new$RMSE
 
-
+# Save plot as png
 # png(filename = file.path(dir.figs,"Chap 1RMSE long Plot 28Feb24.png"), width = 1000, height = 800)
 
 # RMSE plot
@@ -290,14 +302,12 @@ ggplot(full_rmseDF, aes(x = Day, y = RMSE/1000
         text = element_text(size = 20),
         axis.text = element_text(angle = 90))
 
-
+# Uncomment to turn off the save function
 # dev.off()
-
-
 
 # MAPE ####################################################################
 
-# Create MAPE dataframe
+# Create MAPE data frame
 mapeDF_verPSSreg <- data.frame("Day" = testDays,
                           "MAPE" = RetroList_verPSSreg$MAPE_vect,
                           "Version" = "Ver PSSreg")
@@ -309,7 +319,7 @@ mapeDF_PF_new <- data.frame("Day" = testDays,
 # Combine into one data-frame
 full_MAPE.df <- rbind(
   mapeDF_verPSSreg
-  # mapeDF_PF_new # Uncomment to use in excel-like table
+  # mapeDF_PF_new # Uncomment for use in excel-like table
 )
 
 
@@ -385,21 +395,17 @@ peDF_total <- rbind(
 )
 
 # For plotting PF point shape 
-
-newDF <- left_join(x = pf_hist, y = CAN_hist_new)
-# newDF <- left_join(x = newDF, y = CAN_hist_old, "Year")
-
-# newDF$PF_new <- (newDF$Weighted_Forecast-newDF$can.mean.x)/newDF$can.mean.x
+newDF <- left_join(x = pf_hist, y = CAN_hist)
 
 newDF$Year <- as.factor(newDF$Year)
 
 newDF$PF_old <- (newDF$mean-newDF$can.mean)/newDF$can.mean
 
+# Uncomment to save PE plot as png
 # png(file = file.path(dir.figs,"Chap 1 PE Plot across years yaxis Cropped 28Feb24.png"),
 # width = 1000, height = 800)
 
 # PE plot for each day across years
-
 # ggplot(peDF_total[!peDF_total$Year %in% c(2021,2022),], 
 ggplot(peDF_total, 
        aes(x = version,

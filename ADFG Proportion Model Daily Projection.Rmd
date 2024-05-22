@@ -141,7 +141,9 @@ GSI_by_year <- readRDS(file = file.path(dir.data,"GSI by year unadj 4Apr24.RDS")
 logistic.all <- read.csv(file = file.path(dir.data,"logistic curve parameters All Chinook 1995_2022.csv"))
 
 # Normal curve fitting parameters
-normal.all <- read.csv(file = file.path(dir.data,"normal curve parameters All Chinook 1995_2022.csv"))
+# normal.all <- read.csv(file = file.path(dir.data,"normal curve parameters All Chinook 1995_2022.csv"))
+normal.all <- readRDS(file = file.path(dir.data,"normal curve parameters All Chinook 1995_2023.RDS"))
+
 
 # Read in PSS observation error estimates
 PSS_sd <- readRDS(file = file.path(dir.data,"PSS SD 1995_2021.RDS"))
@@ -165,17 +167,22 @@ model.output <-InSeasonProjection(model.version = model.version,
                                   logistic = FALSE,
                                   prior.df.log = logistic.all,
                                   prior.df.norm = normal.all,
-                                  multiplier = 1,
+                                  # multiplier = 1,
                                   startDayPSS = 148,
                                   startYearPSS = 2005,
                                   PSS_sd = PSS_sd,
-                                  Emmonak_Air_Temp = Emmonak_Air_Temp,
-                                  norton.sst = norton.sst,
-                                  endYear = 2023)
+                                  # Emmonak_Air_Temp = Emmonak_Air_Temp,
+                                  # norton.sst = norton.sst,
+                                  endYear = myYear-1)
 
+# Use ecdf to calculate CDF
 run.size.ecdf <- ecdf(model.output$pars$RunSize)
 
-prob.escapement <- run.size.ecdf(42500)
+# Lower escapement goal
+lwrEsc <- 42500
+
+# Probability of meeting escapement goal give projection
+prob.escapement <- run.size.ecdf(lwrEsc)
 
 ```
 # `r projection_day`

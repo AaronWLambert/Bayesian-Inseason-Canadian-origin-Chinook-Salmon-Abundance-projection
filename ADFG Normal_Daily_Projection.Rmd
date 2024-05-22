@@ -164,17 +164,22 @@ model.output <-InSeasonProjection(model.version = model.version,
                                   logistic = FALSE,
                                   prior.df.log = logistic.all,
                                   prior.df.norm = normal.all,
-                                  multiplier = 1,
+                                  # multiplier = 1,
                                   startDayPSS = 148,
                                   startYearPSS = 2005,
                                   PSS_sd = PSS_sd,
-                                  Emmonak_Air_Temp = Emmonak_Air_Temp,
-                                  norton.sst = norton.sst,
-                                  endYear = 2023)
+                                  # Emmonak_Air_Temp = Emmonak_Air_Temp,
+                                  # norton.sst = norton.sst,
+                                  endYear = myYear-1)
 
+# Get the CDF
 run.size.ecdf <- ecdf(model.output$pars$RunSize)
 
-prob.escapement <- run.size.ecdf(42500)
+# Lower escapement goal
+lwrEsc <- 42500
+
+# Prob of meeting escapement goal given the projection
+prob.escapement <- run.size.ecdf(lwrEsc)
 
 ```
 # `r projection_day`
