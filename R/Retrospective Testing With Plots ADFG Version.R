@@ -104,11 +104,11 @@ normal.all <- readRDS(file = file.path(dir.data,"normal curve parameters All Chi
 end.year = 2022
 
 # Input model for retro testing
-model.version <- "PSSreg"
+model.version <- "PSSnormal_ESprop"
 
 # MCMC Parameters
 n.chains <- 4   # Number of chains to run
-n.iter <- 5000  # Number of iterations per chain
+n.iter <- 1000  # Number of iterations per chain
 n.thin <- 2     # Thinning rate 
 
 # Days to use in retrospective testing runs ##############
@@ -143,7 +143,7 @@ for(y in c(testYears)){
                                                                   n.iter = n.iter,
                                                                   GSI_by_year = GSI_by_year,
                                                                   Eagle_hist = Eagle_hist,
-                                                                  normal = FALSE,
+                                                                  normal = TRUE,
                                                                   logistic = FALSE,
                                                                   prior.df.log = logistic.all,
                                                                   prior.df.norm = normal.all,

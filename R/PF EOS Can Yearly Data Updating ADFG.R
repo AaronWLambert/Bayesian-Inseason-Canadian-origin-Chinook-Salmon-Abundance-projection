@@ -91,8 +91,8 @@ view(CAN_hist)
 #  Function for fitting normal dist curve to daily PSS passage 
 extract.data <- function(df, year) {
   ### TESTING ###
-  df <- PSS_hist
-  year <- 1995
+  # df <- PSS_hist
+  # year <- 1995
   ###############
   temp.data <- df[df$Year == year,]
   min.day <- min(temp.data$Day)
@@ -199,6 +199,9 @@ norm.alpha <- vector(length=n.years)
 # par(mfrow = c(3,3))
 # y <- 1
 for(y in 1:n.years) {
+  
+  # y = 2
+  
   year <- years[y]
   print(year)
   # Extract data NOTE! Change GSI if needed for model
@@ -231,7 +234,7 @@ for(y in 1:n.years) {
 prior.df <- data.frame(norm.mu,norm.sd,norm.alpha,years)
 
 # Name the colums
-names(prior.df) <- c('mu','sd','alpha',"year")
+names(prior.df) <- c('mid','sd','alpha',"year")
 
 # Save as RDS
 # saveRDS(object = prior.df, file = file.path(dir.data,"normal curve parameters All Chinook 1995_2023.RDS"))
