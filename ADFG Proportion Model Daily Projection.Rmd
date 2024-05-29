@@ -131,7 +131,7 @@ CAN_hist <- readRDS(file.path(dir.data,"Canadian Chinook Passage RR 2Apr24.RDS")
 
 # Read in historic preseason forecasts (2013 - current)
 # pf_hist <- readRDS(file.path(dir.data,"preseason forcast.RDS"))
-pf_hist <- readRDS(file.path(dir.data,"pf_ver3.1_4Apr24_needupdatingtonewmethod.RDS"))
+pf_hist <- readRDS(file.path(dir.data,"Yukon Canadian Chinook PF 29May24.RDS"))
 # Read in genetic stock identification (2005-2019) 
 # (adjusted to capture early and late runs)
 # GSI_by_year <- readRDS(file = file.path(dir.data,"GSI by year"))
